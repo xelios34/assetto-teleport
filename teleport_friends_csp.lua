@@ -263,6 +263,17 @@ local teleportApp = ui.addSettings({
     max = vec2(700, 800)
   }
 }, function()
+  -- Mouse pencere uzerinde degilken listeyi gizle.
+  -- Mouse tekrar pencerenin uzerine geldiginde aninda gorunur.
+  local mouse = ui.mousePos()
+  local winPos = ui.windowPos()
+  local winSize = ui.windowSize()
+  local mouseOverWindow =
+    mouse.x >= winPos.x and mouse.x <= winPos.x + winSize.x and
+    mouse.y >= winPos.y and mouse.y <= winPos.y + winSize.y
+
+  ui.pushStyleVar(ui.StyleVar.Alpha, mouseOverWindow and 1 or 0)
+
   ui.text('TELEPORT FRIENDS')
   ui.separator()
 
@@ -312,6 +323,8 @@ local teleportApp = ui.addSettings({
       end
     )
   end
+
+  ui.popStyleVar()
 end)
 
 if teleportApp then
