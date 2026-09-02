@@ -264,7 +264,7 @@ local teleportApp = ui.addSettings({
     max = vec2(700, 800)
   }
 }, function()
-  ui.text('TELEPORT FRIENDS')
+  ui.text('')
   ui.separator()
 
   if messageTimer > 0 then
