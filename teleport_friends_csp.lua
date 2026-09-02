@@ -281,7 +281,7 @@ local teleportApp = ui.addSettings({
         math.max(0.0, 5.0 - teleportEstimate)
       ))
     else
-      ui.text('GHOST: HAZIR')
+      ui.text()
     end
   else
     ui.text('GHOST API: YOK')
