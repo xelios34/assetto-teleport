@@ -275,6 +275,11 @@ local windowContentAlpha = ui.SmoothInterpolation(1.0, 2.0)
 local ACTIVE_BACKGROUND_ALPHA = 0.30
 local INACTIVE_BACKGROUND_ALPHA = 0.0
 
+-- Ana pencerenin içindeki child/list alanı için ayrı hover durumu.
+-- ui.windowHovered() ana pencere yerine child window üzerinde çalışabildiği
+-- için bir önceki frame'deki child hover bilgisini de saklıyoruz.
+local listHovered = false
+
 local teleportApp = ui.addSettings({
   id = 'TeleportFriendsOnlineApp',
   name = 'Teleport Friends',
@@ -289,10 +294,15 @@ local teleportApp = ui.addSettings({
 }, function()
   -- CSP'nin kendi app arka planını kapatıyoruz.
   -- Arka planı burada kendimiz çizip sadece mouse üstündeyken görünür yapıyoruz.
-  local hovered = ui.windowHovered()
+  -- Ana pencere veya bir önceki frame'de liste/child alanı hover ise
+  -- uygulama aktif kabul edilir.
+  local hovered = ui.windowHovered() or listHovered
   local targetAlpha = hovered and ACTIVE_BACKGROUND_ALPHA or INACTIVE_BACKGROUND_ALPHA
   local alpha = windowBackgroundAlpha(targetAlpha)
-  local contentAlpha = windowContentAlpha(hovered and 1.0 or 0.0)
+
+  -- İçerik artık boş child alanında kaybolmasın.
+  -- Hover sadece arka plan saydamlığını kontrol ediyor.
+  local contentAlpha = windowContentAlpha(1.0)
 
   ui.drawRectFilled(
     vec2(0, 0),
@@ -328,7 +338,10 @@ local teleportApp = ui.addSettings({
 
   ui.offsetCursorY(8)
 
+  -- Bu frame'de child alanı çizilene kadar önceki durum kullanılır.
+  -- Liste yoksa eski hover durumu kalmasın.
   if #players == 0 then
+    listHovered = false
     ui.text('Başka online oyuncu yok.')
   else
     ui.childWindow(
@@ -336,6 +349,10 @@ local teleportApp = ui.addSettings({
       vec2(ui.availableSpaceX(), ui.availableSpaceY()),
       true,
       function()
+        -- Mouse liste/child alanının boş kısmında olsa bile pencere
+        -- hover kabul edilsin.
+        listHovered = ui.windowHovered()
+
         for _, player in ipairs(players) do
           ui.pushID(player.index)
 
