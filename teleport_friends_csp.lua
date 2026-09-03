@@ -253,27 +253,34 @@ end
 -- UI
 -- ============================================================
 
--- Chat benzeri mouse-hover saydamlığı
-local windowAlpha = 1.0
-local FADE_SPEED = 8.0
-local FADED_ALPHA = 0.12
+-- Chat benzeri arka plan saydamlığı
+local windowBackgroundAlpha = ui.SmoothInterpolation(1.0, 7.0)
+local ACTIVE_BACKGROUND_ALPHA = 0.82
+local INACTIVE_BACKGROUND_ALPHA = 0.03
 
 local teleportApp = ui.addSettings({
   id = 'TeleportFriendsOnlineApp',
   name = 'Teleport Friends',
   icon = ui.Icons.Car,
   category = 'main',
+  flags = {'NO_BACKGROUND', 'FLOATING_TITLE_BAR'},
   size = {
     default = vec2(360, 430),
     min = vec2(280, 260),
     max = vec2(700, 800)
   }
 }, function()
-  -- Mouse pencerenin üzerindeyken görünür, uzaktayken yumuşakça saydamlaşır.
+  -- CSP'nin kendi app arka planını kapatıyoruz.
+  -- Arka planı burada kendimiz çizip sadece mouse üstündeyken görünür yapıyoruz.
   local hovered = ui.windowHovered()
-  local targetAlpha = hovered and 1.0 or FADED_ALPHA
-  windowAlpha = windowAlpha + (targetAlpha - windowAlpha) * math.min(1.0, ac.getUiState().dt * FADE_SPEED)
-  ui.pushStyleVar(ui.StyleVar.Alpha, windowAlpha)
+  local targetAlpha = hovered and ACTIVE_BACKGROUND_ALPHA or INACTIVE_BACKGROUND_ALPHA
+  local alpha = windowBackgroundAlpha(targetAlpha)
+
+  ui.drawRectFilled(
+    vec2(0, 0),
+    vec2(ui.windowWidth(), ui.windowHeight()),
+    rgbm(0, 0, 0, alpha)
+  )
 
   ui.text('')
   ui.separator()
@@ -325,7 +332,6 @@ local teleportApp = ui.addSettings({
     )
   end
 
-  ui.popStyleVar()
 end)
 
 
