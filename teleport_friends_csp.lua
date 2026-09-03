@@ -253,18 +253,28 @@ end
 -- UI
 -- ============================================================
 
+-- Chat benzeri mouse-hover saydamlığı
+local windowAlpha = 1.0
+local FADE_SPEED = 8.0
+local FADED_ALPHA = 0.12
+
 local teleportApp = ui.addSettings({
   id = 'TeleportFriendsOnlineApp',
   name = 'Teleport Friends',
   icon = ui.Icons.Car,
   category = 'main',
-  flags = ui.WindowFlags.Fading,
   size = {
     default = vec2(360, 430),
     min = vec2(280, 260),
     max = vec2(700, 800)
   }
 }, function()
+  -- Mouse pencerenin üzerindeyken görünür, uzaktayken yumuşakça saydamlaşır.
+  local hovered = ui.windowHovered()
+  local targetAlpha = hovered and 1.0 or FADED_ALPHA
+  windowAlpha = windowAlpha + (targetAlpha - windowAlpha) * math.min(1.0, ac.getUiState().dt * FADE_SPEED)
+  ui.pushStyleVar(ui.StyleVar.Alpha, windowAlpha)
+
   ui.text('')
   ui.separator()
 
@@ -314,6 +324,8 @@ local teleportApp = ui.addSettings({
       end
     )
   end
+
+  ui.popStyleVar()
 end)
 
 
