@@ -356,7 +356,7 @@ local teleportApp = ui.addSettings({
           ui.pushID(player.index)
 
           if ui.button(
-            '👥  ' .. player.name,
+            '  ' .. player.name,
             vec2(ui.availableSpaceX(), 34)
           ) then
             teleportBehind(player.index, player.name)
