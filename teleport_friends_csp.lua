@@ -261,12 +261,18 @@ local windowContentAlpha = ui.SmoothInterpolation(1.0, 7.0)
 local ACTIVE_BACKGROUND_ALPHA = 0.82
 local INACTIVE_BACKGROUND_ALPHA = 0.0
 
+-- Native resize çentiği yerine, aynı görünürlük mantığıyla çalışan özel resize alanı.
+-- Resize özelliği korunur; çentik sadece mouse uygulamanın üzerindeyken çizilir.
+local resizeWindow = nil
+local resizeActive = false
+local resizeSize = vec2(360, 430)
+
 local teleportApp = ui.addSettings({
   id = 'TeleportFriendsOnlineApp',
   name = 'Teleport Friends',
   icon = ui.Icons.Car,
   category = 'main',
-  flags = {'NO_BACKGROUND', 'FLOATING_TITLE_BAR'},
+  flags = {'NO_BACKGROUND', 'FLOATING_TITLE_BAR', 'NO_RESIZE'},
   size = {
     default = vec2(360, 430),
     min = vec2(280, 260),
@@ -286,13 +292,8 @@ local teleportApp = ui.addSettings({
     rgbm(0, 0, 0, alpha)
   )
 
-  -- Mouse dışındayken listenin/yazıların ve resize çentiğinin tamamen kaybolması.
+  -- Mouse dışındayken listenin/yazıların tamamen kaybolması.
   ui.pushStyleVarAlpha(contentAlpha)
-  -- Resize çentiği: listeyle aynı şekilde sadece hover durumunda görünür.
-  local gripColor = hovered and rgbm.colors.white or rgbm.colors.transparent
-  ui.pushStyleColor(ui.StyleColor.ResizeGrip, gripColor)
-  ui.pushStyleColor(ui.StyleColor.ResizeGripHovered, gripColor)
-  ui.pushStyleColor(ui.StyleColor.ResizeGripActive, gripColor)
 
   ui.text('')
   ui.separator()
@@ -344,7 +345,42 @@ local teleportApp = ui.addSettings({
     )
   end
 
-  ui.popStyleColor(3)
+  -- Native çentiği kullanmıyoruz; onun yerine görünürlüğünü tamamen kontrol
+  -- edebildiğimiz küçük bir resize alanı kullanıyoruz.
+  ui.setCursor(vec2(ui.windowWidth() - 20, ui.windowHeight() - 20))
+  local resizeHovered = ui.invisibleButton('##TeleportFriendsResize', vec2(20, 20))
+  local resizePressed = ui.itemActive()
+
+  if resizePressed then
+    if not resizeActive then
+      resizeActive = true
+      resizeSize = vec2(ui.windowWidth(), ui.windowHeight())
+    end
+
+    local delta = ui.mouseDelta()
+    resizeSize.x = math.max(280, math.min(700, resizeSize.x + delta.x))
+    resizeSize.y = math.max(260, math.min(800, resizeSize.y + delta.y))
+
+    resizeWindow = resizeWindow or ac.accessAppWindow('TeleportFriendsOnlineApp')
+    if resizeWindow and resizeWindow:valid() then
+      resizeWindow:resize(resizeSize)
+    end
+  else
+    resizeActive = false
+  end
+
+  -- Çentik yalnızca mouse uygulamanın üzerindeyken görünür.
+  if hovered then
+    local x = ui.windowWidth()
+    local y = ui.windowHeight()
+    ui.drawTriangleFilled(
+      vec2(x - 5, y - 5),
+      vec2(x - 5, y - 14),
+      vec2(x - 14, y - 5),
+      rgbm(1, 1, 1, 0.55)
+    )
+  end
+
   ui.popStyleVar()
 end)
 
