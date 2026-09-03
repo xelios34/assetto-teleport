@@ -256,10 +256,8 @@ end
 -- ============================================================
 
 -- Chat benzeri arka plan saydamlığı
-local fadeTimer = 0.0
-local FADE_DURATION = 2.0
-local FADE_END_BACKGROUND_ALPHA = 0.12
-local FADE_END_CONTENT_ALPHA = 0.08
+local windowBackgroundAlpha = ui.SmoothInterpolation(1.0, 7.0)
+local windowContentAlpha = ui.SmoothInterpolation(1.0, 7.0)
 local ACTIVE_BACKGROUND_ALPHA = 0.82
 local INACTIVE_BACKGROUND_ALPHA = 0.0
 
@@ -268,7 +266,7 @@ local teleportApp = ui.addSettings({
   name = 'Teleport Friends',
   icon = ui.Icons.Car,
   category = 'main',
-  flags = {'NO_BACKGROUND', 'FLOATING_TITLE_BAR'},
+  flags = {'NO_BACKGROUND', 'FLOATING_TITLE_BAR', 'FADING'},
   size = {
     default = vec2(360, 430),
     min = vec2(280, 260),
@@ -278,21 +276,9 @@ local teleportApp = ui.addSettings({
   -- CSP'nin kendi app arka planını kapatıyoruz.
   -- Arka planı burada kendimiz çizip sadece mouse üstündeyken görünür yapıyoruz.
   local hovered = ui.windowHovered()
-
-  if hovered then
-    -- Mouse üstündeyken anında tamamen görünür.
-    fadeTimer = 0.0
-  else
-    -- Mouse ayrıldıktan sonra 2 saniyelik sayaç çalışır; bu sürede görünür kalır.
-    fadeTimer = math.min(FADE_DURATION, fadeTimer + ac.getUiState().dt)
-  end
-
-  -- TEK ortak görünürlük durumu: arka plan, liste/yazılar ve resize çentiği
-  -- aynı zamanlamayı kullanır. 2 saniye dolunca hepsi aynı anda kaybolur.
-  local visible = hovered or fadeTimer < FADE_DURATION
-  local alpha = visible and ACTIVE_BACKGROUND_ALPHA or INACTIVE_BACKGROUND_ALPHA
-  local contentAlpha = visible and 1.0 or 0.0
-  local gripAlpha = visible and 1.0 or 0.0
+  local targetAlpha = hovered and ACTIVE_BACKGROUND_ALPHA or INACTIVE_BACKGROUND_ALPHA
+  local alpha = windowBackgroundAlpha(targetAlpha)
+  local contentAlpha = windowContentAlpha(hovered and 1.0 or 0.0)
 
   ui.drawRectFilled(
     vec2(0, 0),
@@ -300,12 +286,8 @@ local teleportApp = ui.addSettings({
     rgbm(0, 0, 0, alpha)
   )
 
-  -- Hepsi aynı ortak görünürlük durumunu kullanıyor: liste/yazılar + resize çentiği.
+  -- Mouse dışındayken listenin/yazıların tamamen kaybolması.
   ui.pushStyleVarAlpha(contentAlpha)
-  local gripColor = rgbm(1, 1, 1, gripAlpha)
-  ui.pushStyleColor(ui.StyleColor.ResizeGrip, gripColor)
-  ui.pushStyleColor(ui.StyleColor.ResizeGripHovered, gripColor)
-  ui.pushStyleColor(ui.StyleColor.ResizeGripActive, gripColor)
 
   ui.text('')
   ui.separator()
@@ -357,7 +339,6 @@ local teleportApp = ui.addSettings({
     )
   end
 
-  ui.popStyleColor(3)
   ui.popStyleVar()
 end)
 
