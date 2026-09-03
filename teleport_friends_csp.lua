@@ -47,6 +47,8 @@ local disabledCollisionEvent = ac.OnlineEvent({
     physics.disableCarCollisions(sender.index, data.disabled)
     physics.disableCarCollisions(0, data.disabled)
   end
+
+  ui.popStyleVar()
 end)
 
 -- Collision kapat/aç.
@@ -255,8 +257,9 @@ end
 
 -- Chat benzeri arka plan saydamlığı
 local windowBackgroundAlpha = ui.SmoothInterpolation(1.0, 7.0)
+local windowContentAlpha = ui.SmoothInterpolation(1.0, 7.0)
 local ACTIVE_BACKGROUND_ALPHA = 0.82
-local INACTIVE_BACKGROUND_ALPHA = 0.03
+local INACTIVE_BACKGROUND_ALPHA = 0.0
 
 local teleportApp = ui.addSettings({
   id = 'TeleportFriendsOnlineApp',
@@ -275,12 +278,16 @@ local teleportApp = ui.addSettings({
   local hovered = ui.windowHovered()
   local targetAlpha = hovered and ACTIVE_BACKGROUND_ALPHA or INACTIVE_BACKGROUND_ALPHA
   local alpha = windowBackgroundAlpha(targetAlpha)
+  local contentAlpha = windowContentAlpha(hovered and 1.0 or 0.0)
 
   ui.drawRectFilled(
     vec2(0, 0),
     vec2(ui.windowWidth(), ui.windowHeight()),
     rgbm(0, 0, 0, alpha)
   )
+
+  -- Mouse dışındayken listenin/yazıların da tamamen kaybolması.
+  ui.pushStyleVarAlpha(contentAlpha)
 
   ui.text('')
   ui.separator()
@@ -332,6 +339,7 @@ local teleportApp = ui.addSettings({
     )
   end
 
+  ui.popStyleVar()
 end)
 
 
