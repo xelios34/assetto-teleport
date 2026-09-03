@@ -255,11 +255,9 @@ end
 -- UI
 -- ============================================================
 
--- Chat benzeri görünürlük:
--- Mouse çekildikten 2 saniye sonra aniden gizlenir.
--- Mouse tekrar üzerine geldiği anda aniden görünür.
-local hideTimer = 0.0
-local HIDE_DELAY = 2.0
+-- Chat benzeri arka plan saydamlığı
+local windowBackgroundAlpha = ui.SmoothInterpolation(1.0, 50.0)
+local windowContentAlpha = ui.SmoothInterpolation(1.0, 50.0)
 local ACTIVE_BACKGROUND_ALPHA = 0.82
 local INACTIVE_BACKGROUND_ALPHA = 0.0
 
@@ -268,24 +266,19 @@ local teleportApp = ui.addSettings({
   name = 'Teleport Friends',
   icon = ui.Icons.Car,
   category = 'main',
-  flags = {'NO_BACKGROUND', 'FLOATING_TITLE_BAR'},
+  flags = {'NO_BACKGROUND', 'FLOATING_TITLE_BAR', 'FADING'},
   size = {
     default = vec2(360, 430),
     min = vec2(280, 260),
     max = vec2(700, 800)
   }
 }, function()
+  -- CSP'nin kendi app arka planını kapatıyoruz.
+  -- Arka planı burada kendimiz çizip sadece mouse üstündeyken görünür yapıyoruz.
   local hovered = ui.windowHovered()
-
-  if hovered then
-    hideTimer = 0.0
-  else
-    hideTimer = hideTimer + (ac.getSim().dt or 0)
-  end
-
-  local visible = hovered or hideTimer < HIDE_DELAY
-  local alpha = visible and ACTIVE_BACKGROUND_ALPHA or INACTIVE_BACKGROUND_ALPHA
-  local contentAlpha = visible and 1.0 or 0.0
+  local targetAlpha = hovered and ACTIVE_BACKGROUND_ALPHA or INACTIVE_BACKGROUND_ALPHA
+  local alpha = windowBackgroundAlpha(targetAlpha)
+  local contentAlpha = windowContentAlpha(hovered and 1.0 or 0.0)
 
   ui.drawRectFilled(
     vec2(0, 0),
@@ -293,8 +286,7 @@ local teleportApp = ui.addSettings({
     rgbm(0, 0, 0, alpha)
   )
 
-  -- Mouse dışındayken 2 saniye boyunca görünür kalır;
-  -- süre dolduğu karede aniden tamamen kaybolur.
+  -- Mouse dışındayken listenin/yazıların tamamen kaybolması.
   ui.pushStyleVarAlpha(contentAlpha)
 
   ui.text('')
