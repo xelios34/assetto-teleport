@@ -320,7 +320,7 @@ local teleportApp = ui.addSettings({
     ui.offsetCursorY(4)
   end
 
-  ui.text('ONLINE: ' .. tostring(#players))
+  ui.text('👥 ONLINE: ' .. tostring(#players))
 
   if supportAPI_collision then
     if disabledCollision then
