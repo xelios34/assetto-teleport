@@ -283,15 +283,16 @@ local teleportApp = ui.addSettings({
     -- Mouse üstündeyken anında tamamen görünür.
     fadeTimer = 0.0
   else
-    -- Mouse ayrıldıktan sonra 2 saniye boyunca yavaşça kaybolur.
+    -- Mouse ayrıldıktan sonra 2 saniyelik sayaç çalışır; bu sürede görünür kalır.
     fadeTimer = math.min(FADE_DURATION, fadeTimer + ac.getUiState().dt)
   end
 
-  -- Mouse çekildikten sonra 2 saniye boyunca tamamen görünür kalır.
-  -- 2 saniye dolduğu anda bir anda tamamen kaybolur; arada fade yapılmaz.
+  -- TEK ortak görünürlük durumu: arka plan, liste/yazılar ve resize çentiği
+  -- aynı zamanlamayı kullanır. 2 saniye dolunca hepsi aynı anda kaybolur.
   local visible = hovered or fadeTimer < FADE_DURATION
   local alpha = visible and ACTIVE_BACKGROUND_ALPHA or INACTIVE_BACKGROUND_ALPHA
   local contentAlpha = visible and 1.0 or 0.0
+  local gripAlpha = visible and 1.0 or 0.0
 
   ui.drawRectFilled(
     vec2(0, 0),
@@ -299,10 +300,9 @@ local teleportApp = ui.addSettings({
     rgbm(0, 0, 0, alpha)
   )
 
-  -- 2 saniye dolduğunda listenin/yazıların ve resize çentiğinin anında tamamen kaybolması.
+  -- Hepsi aynı ortak görünürlük durumunu kullanıyor: liste/yazılar + resize çentiği.
   ui.pushStyleVarAlpha(contentAlpha)
-  -- Resize çentiği: listeyle aynı şekilde sadece hover durumunda görünür.
-  local gripColor = hovered and rgbm.colors.white or rgbm.colors.transparent
+  local gripColor = rgbm(1, 1, 1, gripAlpha)
   ui.pushStyleColor(ui.StyleColor.ResizeGrip, gripColor)
   ui.pushStyleColor(ui.StyleColor.ResizeGripHovered, gripColor)
   ui.pushStyleColor(ui.StyleColor.ResizeGripActive, gripColor)
