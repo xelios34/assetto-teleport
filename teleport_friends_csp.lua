@@ -258,6 +258,7 @@ local teleportApp = ui.addSettings({
   name = 'Teleport Friends',
   icon = ui.Icons.Car,
   category = 'main',
+  flags = ui.WindowFlags.Fading,
   size = {
     default = vec2(360, 430),
     min = vec2(280, 260),
