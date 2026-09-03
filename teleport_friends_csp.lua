@@ -1,4 +1,3 @@
-
 -- TELEPORT FRIENDS - ONLINE CSP APP
 -- FastTravel ghost/collision sistemi entegre edilmiştir.
 --
