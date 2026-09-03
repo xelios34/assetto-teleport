@@ -300,9 +300,8 @@ local teleportApp = ui.addSettings({
   local targetAlpha = hovered and ACTIVE_BACKGROUND_ALPHA or INACTIVE_BACKGROUND_ALPHA
   local alpha = windowBackgroundAlpha(targetAlpha)
 
-  -- İçerik artık boş child alanında kaybolmasın.
-  -- Hover sadece arka plan saydamlığını kontrol ediyor.
-  local contentAlpha = windowContentAlpha(1.0)
+  -- Mouse pencerenin/oyuncu listesinin dışına çıkınca içerik de tamamen kaybolsun.
+  local contentAlpha = windowContentAlpha(hovered and 1.0 or 0.0)
 
   ui.drawRectFilled(
     vec2(0, 0),
