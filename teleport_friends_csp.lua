@@ -256,8 +256,8 @@ end
 -- ============================================================
 
 -- Chat benzeri arka plan saydamlığı
-local windowBackgroundAlpha = ui.SmoothInterpolation(1.0, 7.0)
-local windowContentAlpha = ui.SmoothInterpolation(1.0, 7.0)
+local windowBackgroundAlpha = ui.SmoothInterpolation(1.0, 15.0)
+local windowContentAlpha = ui.SmoothInterpolation(1.0, 15.0)
 local ACTIVE_BACKGROUND_ALPHA = 0.82
 local INACTIVE_BACKGROUND_ALPHA = 0.0
 
