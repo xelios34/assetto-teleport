@@ -156,12 +156,12 @@ local function refreshPlayers()
     return
   end
 
-  -- TEST SÜRÜMÜ:
-  -- Kendi aracımızı (Car 0) da listele.
-  -- Böylece oyuncu listesinin kendi aracımızı da algıladığını test edebiliriz.
+  -- Kendi aracımızı (Car 0) listeleme.
+  -- Sistem Car 0'ı kullanmaya devam eder; sadece UI'da kendi adımız gösterilmez.
+  -- Böylece her oyuncu yalnızca diğer online oyuncuları görür.
   local count = tonumber(sim.carsCount) or 0
 
-  for i = 0, count - 1 do
+  for i = 1, count - 1 do
     local ok, car = pcall(function()
       return ac.getCar(i)
     end)
