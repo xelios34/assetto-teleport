@@ -156,11 +156,12 @@ local function refreshPlayers()
     return
   end
 
-  -- Kendi aracımızı (Car 0) listeleme.
-  -- Sadece sunucudaki diğer oyuncuların driverName değerlerini göster.
+  -- TEST SÜRÜMÜ:
+  -- Kendi aracımızı (Car 0) da listele.
+  -- Böylece oyuncu listesinin kendi aracımızı da algıladığını test edebiliriz.
   local count = tonumber(sim.carsCount) or 0
 
-  for i = 1, count - 1 do
+  for i = 0, count - 1 do
     local ok, car = pcall(function()
       return ac.getCar(i)
     end)
@@ -190,6 +191,19 @@ end
 
 
 local function teleportBehind(carIndex, playerName)
+  -- Araç hareket halindeyken teleportu engelle.
+  -- 1 km/h üzerindeyse teleport yapılmaz.
+  local myCar = ac.getCar(0)
+
+  if myCar then
+    local speed = tonumber(myCar.speedKmh) or 0
+
+    if speed > 1.0 then
+      say(string.format('Teleport kapalı: araç hareket ediyor (%.1f km/h)', speed))
+      return
+    end
+  end
+
   if not physics.allowed() then
     say('Extended Physics gerekli.')
     return
