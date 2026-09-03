@@ -315,9 +315,6 @@ local teleportApp = ui.addSettings({
   end
 end)
 
-if teleportApp then
-  teleportApp('open')
-end
 
 -- ============================================================
 -- UPDATE
