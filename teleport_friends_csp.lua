@@ -266,7 +266,7 @@ local teleportApp = ui.addSettings({
   name = 'Teleport Friends',
   icon = ui.Icons.Car,
   category = 'main',
-  flags = {'NO_BACKGROUND', 'FLOATING_TITLE_BAR', 'NO_RESIZE'},
+  flags = {'NO_BACKGROUND', 'FLOATING_TITLE_BAR'},
   size = {
     default = vec2(360, 430),
     min = vec2(280, 260),
@@ -286,8 +286,12 @@ local teleportApp = ui.addSettings({
     rgbm(0, 0, 0, alpha)
   )
 
-  -- Mouse dışındayken listenin/yazıların da tamamen kaybolması.
+  -- Mouse dışındayken listenin/yazıların ve resize çentiğinin tamamen kaybolması.
   ui.pushStyleVarAlpha(contentAlpha)
+  local gripAlpha = hovered and 1.0 or 0.0
+  ui.pushStyleColor(ui.StyleColor.ResizeGrip, rgbm(1, 1, 1, gripAlpha))
+  ui.pushStyleColor(ui.StyleColor.ResizeGripHovered, rgbm(1, 1, 1, gripAlpha))
+  ui.pushStyleColor(ui.StyleColor.ResizeGripActive, rgbm(1, 1, 1, gripAlpha))
 
   ui.text('')
   ui.separator()
@@ -339,6 +343,7 @@ local teleportApp = ui.addSettings({
     )
   end
 
+  ui.popStyleColor(3)
   ui.popStyleVar()
 end)
 
