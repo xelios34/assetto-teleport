@@ -258,7 +258,7 @@ end
 -- Chat benzeri arka plan saydamlığı
 local windowBackgroundAlpha = ui.SmoothInterpolation(1.0, 2.0)
 local windowContentAlpha = ui.SmoothInterpolation(1.0, 2.0)
-local ACTIVE_BACKGROUND_ALPHA = 0.28
+local ACTIVE_BACKGROUND_ALPHA = 0.30
 local INACTIVE_BACKGROUND_ALPHA = 0.0
 
 local teleportApp = ui.addSettings({
