@@ -151,12 +151,10 @@ end
 local function refreshPlayers()
   table.clear(players)
 
-  -- Oyuncuları doğrudan CSP'nin server slot listesinden al.
-  -- Bu yöntem sim.carsCount + sıralı ac.getCar() döngüsüne bağlı değildir.
-  -- Böylece liste normal oyuncularda da admin yetkisine ihtiyaç duymadan
-  -- mevcut online server slotlarından oluşturulur.
+  -- Admin/serverSlots yetkisine bağlı olmayan genel CSP araç iteratoru.
+  -- Böylece admin şifresi girilmesi listeyi şartlandırmaz.
   local okIterate, iterator, state, initial = pcall(function()
-    return ac.iterateCars.serverSlots()
+    return ac.iterateCars()
   end)
 
   if not okIterate or not iterator then
@@ -278,30 +276,6 @@ local INACTIVE_BACKGROUND_ALPHA = 0.0
 -- için bir önceki frame'deki child hover bilgisini de saklıyoruz.
 local listHovered = false
 
--- GT7-style font: Helvetica Neue via DirectWrite.
--- If Helvetica Neue is installed on Windows, DirectWrite will use it.
-local GT7_FONT = 'Helvetica Neue:@System;Weight=Regular'
-
-local function gtText(text, size)
-  ui.pushDWriteFont(GT7_FONT)
-  ui.dwriteText(tostring(text), size or 16, rgbm.colors.white)
-  ui.popDWriteFont()
-end
-
-local function gtTextAligned(text, size, p1, p2)
-  ui.pushDWriteFont(GT7_FONT)
-  ui.dwriteTextAligned(
-    tostring(text),
-    size or 16,
-    ui.Alignment.Center,
-    ui.Alignment.Center,
-    p2 - p1,
-    false,
-    rgbm.colors.white
-  )
-  ui.popDWriteFont()
-end
-
 local teleportApp = ui.addSettings({
   id = 'TeleportFriendsOnlineApp',
   name = 'Teleport Friends',
@@ -323,7 +297,7 @@ local teleportApp = ui.addSettings({
   local alpha = windowBackgroundAlpha(targetAlpha)
 
   -- Mouse pencerenin/oyuncu listesinin dışına çıkınca içerik de tamamen kaybolsun.
-  local contentAlpha = windowContentAlpha(hovered and 1.0 or 0.0)
+  local contentAlpha = 1.0
 
   ui.drawRectFilled(
     vec2(0, 0),
@@ -334,15 +308,15 @@ local teleportApp = ui.addSettings({
   -- Mouse dışındayken listenin/yazıların tamamen kaybolması.
   ui.pushStyleVarAlpha(contentAlpha)
 
-  gtText('', 16)
+  ui.text('')
   ui.separator()
 
   if messageTimer > 0 then
-    gtText(message, 16)
+    ui.text(message)
     ui.offsetCursorY(4)
   end
 
-  gtText('👥 ONLINE: ' .. tostring(#players), 16)
+  ui.text('👥 ONLINE: ' .. tostring(#players))
 
   if supportAPI_collision then
     if disabledCollision then
@@ -351,10 +325,10 @@ local teleportApp = ui.addSettings({
         math.max(0.0, 5.0 - teleportEstimate)
       ))
     else
-      gtText('', 16)
+      ui.text()
     end
   else
-    gtText('GHOST API: YOK', 16)
+    ui.text('GHOST API: YOK')
   end
 
   ui.offsetCursorY(8)
@@ -363,7 +337,7 @@ local teleportApp = ui.addSettings({
   -- Liste yoksa eski hover durumu kalmasın.
   if #players == 0 then
     listHovered = false
-    gtText('Başka online oyuncu yok.', 16)
+    ui.text('Başka online oyuncu yok.')
   else
     ui.childWindow(
       'TeleportFriendsOnlineList',
@@ -377,23 +351,12 @@ local teleportApp = ui.addSettings({
         for _, player in ipairs(players) do
           ui.pushID(player.index)
 
-          local buttonPos = ui.getCursor()
-          local buttonSize = vec2(ui.availableSpaceX(), 34)
-
           if ui.button(
-            '',
-            buttonSize
+            '👥  ' .. player.name,
+            vec2(ui.availableSpaceX(), 34)
           ) then
             teleportBehind(player.index, player.name)
           end
-
-          local buttonMin, buttonMax = ui.itemRect()
-          gtTextAligned(
-            '  ' .. player.name,
-            16,
-            buttonMin,
-            buttonMax
-          )
 
           ui.offsetCursorY(4)
           ui.popID()
