@@ -19,6 +19,26 @@ local refreshTimer = 0.0
 local message = ''
 local messageTimer = 0.0
 
+-- Oyuncu listesi için admin yetkisi gerektirmeyen peer-to-peer duyuru.
+-- Her oyuncu kendi adını düzenli olarak yayınlar; alıcı tarafta gönderenin
+-- kendi araç indeksi kullanılır. Böylece server/admin listesinden bağımsız çalışır.
+local playerAnnouncements = {}
+
+local playerAnnouncementEvent = ac.OnlineEvent({
+  ac.StructItem.key('TeleportFriendsPlayerAnnouncement'),
+  name = ac.StructItem.string(64)
+}, function(sender, data)
+  if sender == nil or data == nil then return end
+  if sender.index == 0 then return end
+  if data.name == nil or data.name == '' then return end
+
+  playerAnnouncements[sender.index] = {
+    index = sender.index,
+    name = data.name,
+    lastSeen = os.clock()
+  }
+end)
+
 -- ============================================================
 -- FASTTRAVEL GHOST / COLLISION SYSTEM
 -- ============================================================
@@ -151,28 +171,38 @@ end
 local function refreshPlayers()
   table.clear(players)
 
-  -- Admin/serverSlots yetkisine bağlı olmayan genel CSP araç iteratoru.
-  -- Böylece admin şifresi girilmesi listeyi şartlandırmaz.
-  local okIterate, iterator, state, initial = pcall(function()
-    return ac.iterateCars()
-  end)
+  -- Her oyuncu kendi adını kendi client'ından yayınlar.
+  -- Bu yöntem serverSlots/admin yetkisine bağlı değildir.
+  local myCar = ac.getCar(0)
+  if myCar then
+    local okName, myName = pcall(function()
+      return myCar:driverName()
+    end)
 
-  if not okIterate or not iterator then
-    return
+    if okName and myName ~= nil and myName ~= '' then
+      pcall(function()
+        playerAnnouncementEvent({
+          name = myName
+        })
+      end)
+    end
   end
 
-  for _, car in iterator, state, initial do
-    if car and car.index ~= 0 then
-      local okName, name = pcall(function()
-        return car:driverName()
-      end)
+  -- Uzun süre duyuru göndermeyen oyuncuları temizle.
+  local now = os.clock()
+  for index, entry in pairs(playerAnnouncements) do
+    if now - entry.lastSeen > 2.0 then
+      playerAnnouncements[index] = nil
+    end
+  end
 
-      if okName and name ~= nil and name ~= '' then
-        players[#players + 1] = {
-          index = car.index,
-          name = name
-        }
-      end
+  -- Kendi aracımızı göstermiyoruz; diğer oyuncuları listele.
+  for index, entry in pairs(playerAnnouncements) do
+    if index ~= 0 and entry.index ~= 0 and entry.name ~= '' then
+      players[#players + 1] = {
+        index = entry.index,
+        name = entry.name
+      }
     end
   end
 
@@ -180,6 +210,7 @@ local function refreshPlayers()
     return a.name:lower() < b.name:lower()
   end)
 end
+
 
 -- ============================================================
 -- TELEPORT
@@ -380,7 +411,7 @@ local teleportApp = ui.addSettings({
           ui.pushID(player.index)
 
           if ui.button(
-            '👥  ' .. player.name,
+            '  ' .. player.name,
             vec2(ui.availableSpaceX(), 34)
           ) then
             teleportBehind(player.index, player.name)
