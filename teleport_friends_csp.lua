@@ -276,6 +276,13 @@ local INACTIVE_BACKGROUND_ALPHA = 0.0
 -- için bir önceki frame'deki child hover bilgisini de saklıyoruz.
 local listHovered = false
 
+-- Alt+Tab sonrası CSP'nin hover durumunun bir frame boyunca/uzun süre
+-- kaybolabildiği durumlarda içerik tekrar yakalanabilsin.
+-- Bu sadece pencere yeniden odaklandığında kısa bir toparlanma penceresi açar;
+-- normal mouse-dışında gizlenme davranışını değiştirmez.
+local focusRecoveryTimer = 0.0
+local wasWindowFocused = false
+
 local teleportApp = ui.addSettings({
   id = 'TeleportFriendsOnlineApp',
   name = 'Teleport Friends',
@@ -293,11 +300,32 @@ local teleportApp = ui.addSettings({
   -- Ana pencere veya bir önceki frame'de liste/child alanı hover ise
   -- uygulama aktif kabul edilir.
   local hovered = ui.windowHovered() or listHovered
+
+  -- Alt+Tab ile oyundan çıkıp geri dönünce FADING/hover durumu bazı
+  -- durumlarda sıfırda takılabiliyor. Pencere tekrar odaklandığında
+  -- yalnızca kısa süreli toparlanma uygula. Mouse pencerenin dışındaysa
+  -- bu sürenin sonunda normal gizleme davranışı aynen devam eder.
+  local okFocused, focused = pcall(function()
+    if ui.windowFocused then
+      return ui.windowFocused()
+    end
+    return nil
+  end)
+
+  if okFocused and focused ~= nil then
+    if focused and not wasWindowFocused then
+      focusRecoveryTimer = 0.35
+    end
+    wasWindowFocused = focused
+  end
+
   local targetAlpha = hovered and ACTIVE_BACKGROUND_ALPHA or INACTIVE_BACKGROUND_ALPHA
   local alpha = windowBackgroundAlpha(targetAlpha)
 
-  -- Mouse pencerenin/oyuncu listesinin dışına çıkınca içerik de tamamen kaybolsun.
-  local contentAlpha = 1.0
+  -- Normal davranış: mouse dışındaysa içerik gizli.
+  -- Alt+Tab dönüşünde yalnızca kısa recovery süresince içerik tekrar çizilir.
+  local contentTarget = hovered and 1.0 or (focusRecoveryTimer > 0 and 1.0 or 0.0)
+  local contentAlpha = windowContentAlpha(contentTarget)
 
   ui.drawRectFilled(
     vec2(0, 0),
@@ -374,6 +402,10 @@ end)
 -- ============================================================
 
 function script.update(dt)
+  if focusRecoveryTimer > 0 then
+    focusRecoveryTimer = math.max(0.0, focusRecoveryTimer - dt)
+  end
+
   -- Online oyuncu listesini yenile.
   refreshTimer = refreshTimer - dt
 
