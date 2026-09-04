@@ -151,29 +151,27 @@ end
 local function refreshPlayers()
   table.clear(players)
 
-  local sim = ac.getSim()
-  if not sim then
+  -- Oyuncuları doğrudan CSP'nin server slot listesinden al.
+  -- Bu yöntem sim.carsCount + sıralı ac.getCar() döngüsüne bağlı değildir.
+  -- Böylece liste normal oyuncularda da admin yetkisine ihtiyaç duymadan
+  -- mevcut online server slotlarından oluşturulur.
+  local okIterate, iterator, state, initial = pcall(function()
+    return ac.iterateCars.serverSlots()
+  end)
+
+  if not okIterate or not iterator then
     return
   end
 
-  -- Kendi aracımızı (Car 0) listeleme.
-  -- Sistem Car 0'ı kullanmaya devam eder; sadece UI'da kendi adımız gösterilmez.
-  -- Böylece her oyuncu yalnızca diğer online oyuncuları görür.
-  local count = tonumber(sim.carsCount) or 0
-
-  for i = 1, count - 1 do
-    local ok, car = pcall(function()
-      return ac.getCar(i)
-    end)
-
-    if ok and car then
+  for _, car in iterator, state, initial do
+    if car and car.index ~= 0 then
       local okName, name = pcall(function()
         return car:driverName()
       end)
 
       if okName and name ~= nil and name ~= '' then
         players[#players + 1] = {
-          index = i,
+          index = car.index,
           name = name
         }
       end
@@ -280,6 +278,30 @@ local INACTIVE_BACKGROUND_ALPHA = 0.0
 -- için bir önceki frame'deki child hover bilgisini de saklıyoruz.
 local listHovered = false
 
+-- GT7-style font: Helvetica Neue via DirectWrite.
+-- If Helvetica Neue is installed on Windows, DirectWrite will use it.
+local GT7_FONT = 'Helvetica Neue:@System;Weight=Regular'
+
+local function gtText(text, size)
+  ui.pushDWriteFont(GT7_FONT)
+  ui.dwriteText(tostring(text), size or 16, rgbm.colors.white)
+  ui.popDWriteFont()
+end
+
+local function gtTextAligned(text, size, p1, p2)
+  ui.pushDWriteFont(GT7_FONT)
+  ui.dwriteTextAligned(
+    tostring(text),
+    size or 16,
+    ui.Alignment.Center,
+    ui.Alignment.Center,
+    p2 - p1,
+    false,
+    rgbm.colors.white
+  )
+  ui.popDWriteFont()
+end
+
 local teleportApp = ui.addSettings({
   id = 'TeleportFriendsOnlineApp',
   name = 'Teleport Friends',
@@ -312,15 +334,15 @@ local teleportApp = ui.addSettings({
   -- Mouse dışındayken listenin/yazıların tamamen kaybolması.
   ui.pushStyleVarAlpha(contentAlpha)
 
-  ui.text('')
+  gtText('', 16)
   ui.separator()
 
   if messageTimer > 0 then
-    ui.text(message)
+    gtText(message, 16)
     ui.offsetCursorY(4)
   end
 
-  ui.text('👥 ONLINE: ' .. tostring(#players))
+  gtText('👥 ONLINE: ' .. tostring(#players), 16)
 
   if supportAPI_collision then
     if disabledCollision then
@@ -329,10 +351,10 @@ local teleportApp = ui.addSettings({
         math.max(0.0, 5.0 - teleportEstimate)
       ))
     else
-      ui.text()
+      gtText('', 16)
     end
   else
-    ui.text('GHOST API: YOK')
+    gtText('GHOST API: YOK', 16)
   end
 
   ui.offsetCursorY(8)
@@ -341,7 +363,7 @@ local teleportApp = ui.addSettings({
   -- Liste yoksa eski hover durumu kalmasın.
   if #players == 0 then
     listHovered = false
-    ui.text('Başka online oyuncu yok.')
+    gtText('Başka online oyuncu yok.', 16)
   else
     ui.childWindow(
       'TeleportFriendsOnlineList',
@@ -355,12 +377,23 @@ local teleportApp = ui.addSettings({
         for _, player in ipairs(players) do
           ui.pushID(player.index)
 
+          local buttonPos = ui.getCursor()
+          local buttonSize = vec2(ui.availableSpaceX(), 34)
+
           if ui.button(
-            '  ' .. player.name,
-            vec2(ui.availableSpaceX(), 34)
+            '',
+            buttonSize
           ) then
             teleportBehind(player.index, player.name)
           end
+
+          local buttonMin, buttonMax = ui.itemRect()
+          gtTextAligned(
+            '  ' .. player.name,
+            16,
+            buttonMin,
+            buttonMax
+          )
 
           ui.offsetCursorY(4)
           ui.popID()
