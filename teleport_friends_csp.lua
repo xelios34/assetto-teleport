@@ -19,26 +19,6 @@ local refreshTimer = 0.0
 local message = ''
 local messageTimer = 0.0
 
--- Oyuncu listesi için admin yetkisi gerektirmeyen peer-to-peer duyuru.
--- Her oyuncu kendi adını düzenli olarak yayınlar; alıcı tarafta gönderenin
--- kendi araç indeksi kullanılır. Böylece server/admin listesinden bağımsız çalışır.
-local playerAnnouncements = {}
-
-local playerAnnouncementEvent = ac.OnlineEvent({
-  ac.StructItem.key('TeleportFriendsPlayerAnnouncement'),
-  name = ac.StructItem.string(64)
-}, function(sender, data)
-  if sender == nil or data == nil then return end
-  if sender.index == 0 then return end
-  if data.name == nil or data.name == '' then return end
-
-  playerAnnouncements[sender.index] = {
-    index = sender.index,
-    name = data.name,
-    lastSeen = os.clock()
-  }
-end)
-
 -- ============================================================
 -- FASTTRAVEL GHOST / COLLISION SYSTEM
 -- ============================================================
@@ -64,11 +44,11 @@ local disabledCollisionEvent = ac.OnlineEvent({
   if sender.index == 0 then return end
 
   if supportAPI_collision then
-    physics.disableCarCollisions(sender.index, data.disabled)
-    physics.disableCarCollisions(0, data.disabled)
+    pcall(function()
+      physics.disableCarCollisions(sender.index, data.disabled)
+      physics.disableCarCollisions(0, data.disabled)
+    end)
   end
-
-  ui.popStyleVar()
 end)
 
 -- Collision kapat/aç.
@@ -93,7 +73,9 @@ local function beginGhost()
     end)
   end
 
-  disabledCollisionEvent({ disabled = true })
+  pcall(function()
+    disabledCollisionEvent({ disabled = true })
+  end)
   disabledCollision = true
   teleportEstimate = 0.0
 end
@@ -110,7 +92,9 @@ local function endGhost()
     end)
   end
 
-  disabledCollisionEvent({ disabled = false })
+  pcall(function()
+    disabledCollisionEvent({ disabled = false })
+  end)
   disabledCollision = false
 end
 
@@ -171,38 +155,29 @@ end
 local function refreshPlayers()
   table.clear(players)
 
-  -- Her oyuncu kendi adını kendi client'ından yayınlar.
-  -- Bu yöntem serverSlots/admin yetkisine bağlı değildir.
-  local myCar = ac.getCar(0)
-  if myCar then
-    local okName, myName = pcall(function()
-      return myCar:driverName()
-    end)
+  -- Online oyuncu listesini doğrudan CSP'nin araç iteratorundan al.
+  -- Bu yöntem server/admin yetkisine bağlı değildir ve chat/admin iletişimine
+  -- ayrıca bir OnlineEvent gönderilmesini gerektirmez.
+  local okIterate, iterator, state, initial = pcall(function()
+    return ac.iterateCars()
+  end)
 
-    if okName and myName ~= nil and myName ~= '' then
-      pcall(function()
-        playerAnnouncementEvent({
-          name = myName
-        })
+  if not okIterate or not iterator then
+    return
+  end
+
+  for car in iterator, state, initial do
+    if car and car.index ~= 0 then
+      local okName, name = pcall(function()
+        return car:driverName()
       end)
-    end
-  end
 
-  -- Uzun süre duyuru göndermeyen oyuncuları temizle.
-  local now = os.clock()
-  for index, entry in pairs(playerAnnouncements) do
-    if now - entry.lastSeen > 2.0 then
-      playerAnnouncements[index] = nil
-    end
-  end
-
-  -- Kendi aracımızı göstermiyoruz; diğer oyuncuları listele.
-  for index, entry in pairs(playerAnnouncements) do
-    if index ~= 0 and entry.index ~= 0 and entry.name ~= '' then
-      players[#players + 1] = {
-        index = entry.index,
-        name = entry.name
-      }
+      if okName and name ~= nil and name ~= '' then
+        players[#players + 1] = {
+          index = car.index,
+          name = name
+        }
+      end
     end
   end
 
