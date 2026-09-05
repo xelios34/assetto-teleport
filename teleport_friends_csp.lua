@@ -155,50 +155,68 @@ end
 local function refreshPlayers()
   table.clear(players)
 
-  -- Online oturumlarda server slot listesini kullan.
-  -- ac.iterateCars() genel araç sırasını verir; online oyuncular için
-  -- CSP'nin serverSlots iteratoru doğrudan sunucu slotlarını döndürür.
+  -- CSP online oyuncu listesi: server/admin yetkisi kullanmaz.
+  -- Önce sim.carsCount ile görünen tüm araçları tara, ardından CSP
+  -- iteratorlarını yedek olarak kullan. Böylece online araç hangi
+  -- koleksiyonda görünüyorsa listede yakalanır.
   local seen = {}
 
-  local function collect(iterator, state, initial)
-    if not iterator then
+  local function addCar(car, index)
+    if not car then return end
+
+    local carIndex = tonumber(index)
+    if carIndex == nil then
+      carIndex = tonumber(car.index)
+    end
+
+    if carIndex == nil or carIndex == 0 or seen[carIndex] then
       return
     end
 
-    for car in iterator, state, initial do
-      if car and car.index ~= 0 and not seen[car.index] then
-        local okName, name = pcall(function()
-          return car:driverName()
-        end)
+    local name = nil
+    pcall(function() name = car:driverName() end)
 
-        if okName and name ~= nil and name ~= '' then
-          seen[car.index] = true
-          players[#players + 1] = {
-            index = car.index,
-            name = name
-          }
-        end
+    if name == nil or name == '' then
+      pcall(function() name = ac.getDriverName(carIndex) end)
+    end
+
+    if name ~= nil and name ~= '' then
+      seen[carIndex] = true
+      players[#players + 1] = {
+        index = carIndex,
+        name = name
+      }
+    end
+  end
+
+  -- 1) Doğrudan simülasyondaki bütün araç slotları.
+  local sim = nil
+  pcall(function() sim = ac.getSim() end)
+
+  if sim then
+    local count = tonumber(sim.carsCount) or 0
+    for i = 0, count - 1 do
+      local okCar, car = pcall(function() return ac.getCar(i) end)
+      if okCar then
+        addCar(car, i)
       end
     end
   end
 
-  local okServer, serverIterator, serverState, serverInitial = pcall(function()
-    return ac.iterateCars.serverSlots()
-  end)
+  -- 2) Online/server-slot iteratorı.
+  local iterators = {
+    function() return ac.iterateCars.serverSlots() end,
+    function() return ac.iterateCars.ordered() end,
+    function() return ac.iterateCars.leaderboard() end,
+    function() return ac.iterateCars() end
+  }
 
-  if okServer then
-    collect(serverIterator, serverState, serverInitial)
-  end
-
-  -- Bazı CSP/single-player oturumlarında serverSlots boş olabilir;
-  -- normal iteratoru da yedek olarak tara. Böylece mevcut davranış korunur.
-  if #players == 0 then
-    local okIterate, iterator, state, initial = pcall(function()
-      return ac.iterateCars()
-    end)
-
-    if okIterate then
-      collect(iterator, state, initial)
+  for _, getIterator in ipairs(iterators) do
+    local okIterate, iterator, state, initial = pcall(getIterator)
+    if okIterate and iterator then
+      for car in iterator, state, initial do
+        addCar(car)
+      end
     end
   end
 
@@ -233,14 +251,8 @@ local function teleportBehind(carIndex, playerName)
   end
 
   local okTarget, target = pcall(function()
-    return ac.getCar.serverSlots(carIndex)
+    return ac.getCar(carIndex)
   end)
-
-  if not okTarget or not target then
-    okTarget, target = pcall(function()
-      return ac.getCar(carIndex)
-    end)
-  end
 
   if not okTarget or not target then
     say(playerName .. ' artık online değil.')
