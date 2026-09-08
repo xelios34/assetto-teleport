@@ -155,13 +155,13 @@ end
 local function refreshPlayers()
   table.clear(players)
 
-  -- CSP online oyuncu listesi: server/admin yetkisi kullanmaz.
-  -- Önce sim.carsCount ile görünen tüm araçları tara, ardından CSP
-  -- iteratorlarını yedek olarak kullan. Böylece online araç hangi
-  -- koleksiyonda görünüyorsa listede yakalanır.
+  -- SADECE online/server slotlarındaki gerçek oyuncuları listele.
+  -- sim.carsCount veya genel ac.iterateCars() kullanılmıyor;
+  -- bunlar CSP Traffic/AI araçlarını da içerebildiği için
+  -- "Traffic 24", "Traffic 25" gibi araçlar listeye giriyordu.
   local seen = {}
 
-  local function addCar(car, index)
+  local function addOnlineCar(car, index)
     if not car then return end
 
     local carIndex = tonumber(index)
@@ -189,34 +189,15 @@ local function refreshPlayers()
     end
   end
 
-  -- 1) Doğrudan simülasyondaki bütün araç slotları.
-  local sim = nil
-  pcall(function() sim = ac.getSim() end)
+  -- CSP'nin serverSlots koleksiyonu online sunucu oyuncularını hedefler.
+  -- Genel araç koleksiyonlarına düşmediğimiz için Traffic/AI araçları
+  -- teleport listesine eklenmez.
+  local okIterate, iterator, state, initial =
+    pcall(function() return ac.iterateCars.serverSlots() end)
 
-  if sim then
-    local count = tonumber(sim.carsCount) or 0
-    for i = 0, count - 1 do
-      local okCar, car = pcall(function() return ac.getCar(i) end)
-      if okCar then
-        addCar(car, i)
-      end
-    end
-  end
-
-  -- 2) Online/server-slot iteratorı.
-  local iterators = {
-    function() return ac.iterateCars.serverSlots() end,
-    function() return ac.iterateCars.ordered() end,
-    function() return ac.iterateCars.leaderboard() end,
-    function() return ac.iterateCars() end
-  }
-
-  for _, getIterator in ipairs(iterators) do
-    local okIterate, iterator, state, initial = pcall(getIterator)
-    if okIterate and iterator then
-      for car in iterator, state, initial do
-        addCar(car)
-      end
+  if okIterate and iterator then
+    for car in iterator, state, initial do
+      addOnlineCar(car)
     end
   end
 
