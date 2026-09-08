@@ -239,7 +239,7 @@ local function teleportBehind(carIndex, playerName)
   if myCar then
     local speed = tonumber(myCar.speedKmh) or 0
 
-    if speed > 1.0 then
+    if speed > 10.0 then
       say(string.format('Teleport kapalı: araç hareket ediyor (%.1f km/h)', speed))
       return
     end
