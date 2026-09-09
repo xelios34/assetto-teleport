@@ -291,21 +291,15 @@ end
 -- UI
 -- ============================================================
 
--- Chat benzeri arka plan saydamlığı
-local windowBackgroundAlpha = ui.SmoothInterpolation(1.0, 2.0)
-local windowContentAlpha = ui.SmoothInterpolation(1.0, 2.0)
-local ACTIVE_BACKGROUND_ALPHA = 0.30
-local INACTIVE_BACKGROUND_ALPHA = 0.0
+-- Görünürlüğü CSP'nin kendi FADING sistemi yönetiyor.
+-- Böylece içerik/listenin yanı sıra FLOATING_TITLE_BAR da aynı
+-- hover davranışıyla birlikte gizlenip geri geliyor.
+-- Script tarafında ikinci bir alpha/fade sistemi kullanmıyoruz;
+-- bu, farklı CSP kurulumlarında sadece listenin kaybolup üst çubuğun
+-- kalması sorununu önlüyor.
 
--- Ana pencerenin içindeki child/list alanı için ayrı hover durumu.
--- ui.windowHovered() ana pencere yerine child window üzerinde çalışabildiği
--- için bir önceki frame'deki child hover bilgisini de saklıyoruz.
-local listHovered = false
-
--- Alt+Tab sonrası CSP'nin hover durumunun bir frame boyunca/uzun süre
--- kaybolabildiği durumlarda içerik tekrar yakalanabilsin.
--- Bu sadece pencere yeniden odaklandığında kısa bir toparlanma penceresi açar;
--- normal mouse-dışında gizlenme davranışını değiştirmez.
+-- Mevcut scriptin Alt+Tab recovery state'i korunuyor; UI görünürlüğünü
+-- artık bu state değil, CSP FADING yönetiyor.
 local focusRecoveryTimer = 0.0
 local wasWindowFocused = false
 
@@ -321,46 +315,9 @@ local teleportApp = ui.addSettings({
     max = vec2(700, 800)
   }
 }, function()
-  -- CSP'nin kendi app arka planını kapatıyoruz.
-  -- Arka planı burada kendimiz çizip sadece mouse üstündeyken görünür yapıyoruz.
-  -- Ana pencere veya bir önceki frame'de liste/child alanı hover ise
-  -- uygulama aktif kabul edilir.
-  local hovered = ui.windowHovered() or listHovered
-
-  -- Alt+Tab ile oyundan çıkıp geri dönünce FADING/hover durumu bazı
-  -- durumlarda sıfırda takılabiliyor. Pencere tekrar odaklandığında
-  -- yalnızca kısa süreli toparlanma uygula. Mouse pencerenin dışındaysa
-  -- bu sürenin sonunda normal gizleme davranışı aynen devam eder.
-  local okFocused, focused = pcall(function()
-    if ui.windowFocused then
-      return ui.windowFocused()
-    end
-    return nil
-  end)
-
-  if okFocused and focused ~= nil then
-    if focused and not wasWindowFocused then
-      focusRecoveryTimer = 0.35
-    end
-    wasWindowFocused = focused
-  end
-
-  local targetAlpha = hovered and ACTIVE_BACKGROUND_ALPHA or INACTIVE_BACKGROUND_ALPHA
-  local alpha = windowBackgroundAlpha(targetAlpha)
-
-  -- Normal davranış: mouse dışındaysa içerik gizli.
-  -- Alt+Tab dönüşünde yalnızca kısa recovery süresince içerik tekrar çizilir.
-  local contentTarget = hovered and 1.0 or (focusRecoveryTimer > 0 and 1.0 or 0.0)
-  local contentAlpha = windowContentAlpha(contentTarget)
-
-  ui.drawRectFilled(
-    vec2(0, 0),
-    vec2(ui.windowWidth(), ui.windowHeight()),
-    rgbm(0, 0, 0, alpha)
-  )
-
-  -- Mouse dışındayken listenin/yazıların tamamen kaybolması.
-  ui.pushStyleVarAlpha(contentAlpha)
+  -- CSP FADING bütün pencerenin görünürlüğünü yönetiyor.
+  -- Burada ekstra alpha uygulanmadığı için title bar ile içerik
+  -- birbirinden bağımsız şekilde kaybolmuyor.
 
   ui.text('')
   ui.separator()
@@ -387,10 +344,7 @@ local teleportApp = ui.addSettings({
 
   ui.offsetCursorY(8)
 
-  -- Bu frame'de child alanı çizilene kadar önceki durum kullanılır.
-  -- Liste yoksa eski hover durumu kalmasın.
   if #players == 0 then
-    listHovered = false
     ui.text('Başka online oyuncu yok.')
   else
     ui.childWindow(
@@ -398,10 +352,6 @@ local teleportApp = ui.addSettings({
       vec2(ui.availableSpaceX(), ui.availableSpaceY()),
       true,
       function()
-        -- Mouse liste/child alanının boş kısmında olsa bile pencere
-        -- hover kabul edilsin.
-        listHovered = ui.windowHovered()
-
         for _, player in ipairs(players) do
           ui.pushID(player.index)
 
@@ -418,10 +368,7 @@ local teleportApp = ui.addSettings({
       end
     )
   end
-
-  ui.popStyleVar()
 end)
-
 
 -- ============================================================
 -- UPDATE
