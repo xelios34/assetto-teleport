@@ -315,9 +315,18 @@ local teleportApp = ui.addSettings({
     max = vec2(700, 800)
   }
 }, function()
-  -- CSP FADING bütün pencerenin görünürlüğünü yönetiyor.
-  -- Burada ekstra alpha uygulanmadığı için title bar ile içerik
-  -- birbirinden bağımsız şekilde kaybolmuyor.
+  -- CSP FADING pencerenin chrome/title bar görünürlüğünü yönetir.
+  -- Yazı/listenin CSP FADING'den bağımsız sabit kalmaması için mouse
+  -- konumunu pencerenin gerçek ekran dikdörtgeniyle kontrol ediyoruz.
+  -- Böylece mouse pencerenin dışına çıktığı anda içerik de tamamen gizlenir.
+  local mouse = ui.mousePos()
+  local winPos = ui.windowPos()
+  local winSize = ui.windowSize()
+  local contentHovered = mouse.x >= winPos.x and mouse.x <= winPos.x + winSize.x
+    and mouse.y >= winPos.y and mouse.y <= winPos.y + winSize.y
+  local contentAlpha = contentHovered and 1.0 or 0.0
+
+  ui.pushStyleVarAlpha(contentAlpha)
 
   ui.text('')
   ui.separator()
@@ -368,6 +377,8 @@ local teleportApp = ui.addSettings({
       end
     )
   end
+
+  ui.popStyleVar()
 end)
 
 -- ============================================================
