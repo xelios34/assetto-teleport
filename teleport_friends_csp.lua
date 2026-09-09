@@ -155,13 +155,13 @@ end
 local function refreshPlayers()
   table.clear(players)
 
-  -- SADECE online/server slotlarındaki gerçek oyuncuları listele.
-  -- sim.carsCount veya genel ac.iterateCars() kullanılmıyor;
-  -- bunlar CSP Traffic/AI araçlarını da içerebildiği için
-  -- "Traffic 24", "Traffic 25" gibi araçlar listeye giriyordu.
+  -- CSP online oyuncu listesi: server/admin yetkisi kullanmaz.
+  -- Önce sim.carsCount ile görünen tüm araçları tara, ardından CSP
+  -- iteratorlarını yedek olarak kullan. Böylece online araç hangi
+  -- koleksiyonda görünüyorsa listede yakalanır.
   local seen = {}
 
-  local function addOnlineCar(car, index)
+  local function addCar(car, index)
     if not car then return end
 
     local carIndex = tonumber(index)
@@ -189,15 +189,34 @@ local function refreshPlayers()
     end
   end
 
-  -- CSP'nin serverSlots koleksiyonu online sunucu oyuncularını hedefler.
-  -- Genel araç koleksiyonlarına düşmediğimiz için Traffic/AI araçları
-  -- teleport listesine eklenmez.
-  local okIterate, iterator, state, initial =
-    pcall(function() return ac.iterateCars.serverSlots() end)
+  -- 1) Doğrudan simülasyondaki bütün araç slotları.
+  local sim = nil
+  pcall(function() sim = ac.getSim() end)
 
-  if okIterate and iterator then
-    for car in iterator, state, initial do
-      addOnlineCar(car)
+  if sim then
+    local count = tonumber(sim.carsCount) or 0
+    for i = 0, count - 1 do
+      local okCar, car = pcall(function() return ac.getCar(i) end)
+      if okCar then
+        addCar(car, i)
+      end
+    end
+  end
+
+  -- 2) Online/server-slot iteratorı.
+  local iterators = {
+    function() return ac.iterateCars.serverSlots() end,
+    function() return ac.iterateCars.ordered() end,
+    function() return ac.iterateCars.leaderboard() end,
+    function() return ac.iterateCars() end
+  }
+
+  for _, getIterator in ipairs(iterators) do
+    local okIterate, iterator, state, initial = pcall(getIterator)
+    if okIterate and iterator then
+      for car in iterator, state, initial do
+        addCar(car)
+      end
     end
   end
 
@@ -220,7 +239,7 @@ local function teleportBehind(carIndex, playerName)
   if myCar then
     local speed = tonumber(myCar.speedKmh) or 0
 
-    if speed > 10.0 then
+    if speed > 1.0 then
       say(string.format('Teleport kapalı: araç hareket ediyor (%.1f km/h)', speed))
       return
     end
@@ -291,15 +310,21 @@ end
 -- UI
 -- ============================================================
 
--- Görünürlüğü CSP'nin kendi FADING sistemi yönetiyor.
--- Böylece içerik/listenin yanı sıra FLOATING_TITLE_BAR da aynı
--- hover davranışıyla birlikte gizlenip geri geliyor.
--- Script tarafında ikinci bir alpha/fade sistemi kullanmıyoruz;
--- bu, farklı CSP kurulumlarında sadece listenin kaybolup üst çubuğun
--- kalması sorununu önlüyor.
+-- Chat benzeri arka plan saydamlığı
+local windowBackgroundAlpha = ui.SmoothInterpolation(1.0, 2.0)
+local windowContentAlpha = ui.SmoothInterpolation(1.0, 2.0)
+local ACTIVE_BACKGROUND_ALPHA = 0.30
+local INACTIVE_BACKGROUND_ALPHA = 0.0
 
--- Mevcut scriptin Alt+Tab recovery state'i korunuyor; UI görünürlüğünü
--- artık bu state değil, CSP FADING yönetiyor.
+-- Ana pencerenin içindeki child/list alanı için ayrı hover durumu.
+-- ui.windowHovered() ana pencere yerine child window üzerinde çalışabildiği
+-- için bir önceki frame'deki child hover bilgisini de saklıyoruz.
+local listHovered = false
+
+-- Alt+Tab sonrası CSP'nin hover durumunun bir frame boyunca/uzun süre
+-- kaybolabildiği durumlarda içerik tekrar yakalanabilsin.
+-- Bu sadece pencere yeniden odaklandığında kısa bir toparlanma penceresi açar;
+-- normal mouse-dışında gizlenme davranışını değiştirmez.
 local focusRecoveryTimer = 0.0
 local wasWindowFocused = false
 
@@ -315,17 +340,45 @@ local teleportApp = ui.addSettings({
     max = vec2(700, 800)
   }
 }, function()
-  -- CSP FADING pencerenin chrome/title bar görünürlüğünü yönetir.
-  -- Yazı/listenin CSP FADING'den bağımsız sabit kalmaması için mouse
-  -- konumunu pencerenin gerçek ekran dikdörtgeniyle kontrol ediyoruz.
-  -- Böylece mouse pencerenin dışına çıktığı anda içerik de tamamen gizlenir.
-  local mouse = ui.mousePos()
-  local winPos = ui.windowPos()
-  local winSize = ui.windowSize()
-  local contentHovered = mouse.x >= winPos.x and mouse.x <= winPos.x + winSize.x
-    and mouse.y >= winPos.y and mouse.y <= winPos.y + winSize.y
-  local contentAlpha = contentHovered and 1.0 or 0.0
+  -- CSP'nin kendi app arka planını kapatıyoruz.
+  -- Arka planı burada kendimiz çizip sadece mouse üstündeyken görünür yapıyoruz.
+  -- Ana pencere veya bir önceki frame'de liste/child alanı hover ise
+  -- uygulama aktif kabul edilir.
+  local hovered = ui.windowHovered() or listHovered
 
+  -- Alt+Tab ile oyundan çıkıp geri dönünce FADING/hover durumu bazı
+  -- durumlarda sıfırda takılabiliyor. Pencere tekrar odaklandığında
+  -- yalnızca kısa süreli toparlanma uygula. Mouse pencerenin dışındaysa
+  -- bu sürenin sonunda normal gizleme davranışı aynen devam eder.
+  local okFocused, focused = pcall(function()
+    if ui.windowFocused then
+      return ui.windowFocused()
+    end
+    return nil
+  end)
+
+  if okFocused and focused ~= nil then
+    if focused and not wasWindowFocused then
+      focusRecoveryTimer = 0.35
+    end
+    wasWindowFocused = focused
+  end
+
+  local targetAlpha = hovered and ACTIVE_BACKGROUND_ALPHA or INACTIVE_BACKGROUND_ALPHA
+  local alpha = windowBackgroundAlpha(targetAlpha)
+
+  -- Normal davranış: mouse dışındaysa içerik gizli.
+  -- Alt+Tab dönüşünde yalnızca kısa recovery süresince içerik tekrar çizilir.
+  local contentTarget = hovered and 1.0 or (focusRecoveryTimer > 0 and 1.0 or 0.0)
+  local contentAlpha = windowContentAlpha(contentTarget)
+
+  ui.drawRectFilled(
+    vec2(0, 0),
+    vec2(ui.windowWidth(), ui.windowHeight()),
+    rgbm(0, 0, 0, alpha)
+  )
+
+  -- Mouse dışındayken listenin/yazıların tamamen kaybolması.
   ui.pushStyleVarAlpha(contentAlpha)
 
   ui.text('')
@@ -353,7 +406,10 @@ local teleportApp = ui.addSettings({
 
   ui.offsetCursorY(8)
 
+  -- Bu frame'de child alanı çizilene kadar önceki durum kullanılır.
+  -- Liste yoksa eski hover durumu kalmasın.
   if #players == 0 then
+    listHovered = false
     ui.text('Başka online oyuncu yok.')
   else
     ui.childWindow(
@@ -361,6 +417,10 @@ local teleportApp = ui.addSettings({
       vec2(ui.availableSpaceX(), ui.availableSpaceY()),
       true,
       function()
+        -- Mouse liste/child alanının boş kısmında olsa bile pencere
+        -- hover kabul edilsin.
+        listHovered = ui.windowHovered()
+
         for _, player in ipairs(players) do
           ui.pushID(player.index)
 
@@ -380,6 +440,7 @@ local teleportApp = ui.addSettings({
 
   ui.popStyleVar()
 end)
+
 
 -- ============================================================
 -- UPDATE
